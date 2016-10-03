@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         JRA - Sort Race Card
 // @namespace    http://iwamot.com/
-// @version      0.0.3
+// @version      0.0.4
 // @author       IWAMOTO Takashi <hello@iwamot.com> http://iwamot.com/
 // @description  JRAの出馬表を並べ替えできるようにします。
 // @include      http://www.jra.go.jp/JRADB/accessD.html
@@ -11,6 +11,10 @@
 // ==/UserScript==
 
 (function(){
+    if ($('.raceDetailList').length === 0) {
+        return;
+    }
+
     function compareByNumber(a, b) {
         return $(a).data('jra-src-number') - $(b).data('jra-src-number');
     }
