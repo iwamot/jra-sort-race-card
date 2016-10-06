@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         JRA - Sort Race Card
 // @namespace    http://iwamot.com/
-// @version      0.0.5
+// @version      0.0.6
 // @author       IWAMOTO Takashi <hello@iwamot.com> http://iwamot.com/
 // @description  JRAの出馬表を並べ替えできるようにします。
 // @include      http://www.jra.go.jp/JRADB/accessD.html
@@ -11,18 +11,14 @@
 // ==/UserScript==
 
 (function(){
-    if ($('.raceDetailList').length === 0 || $('table.print:first').length > 0) {
-        return;
-    }
-
     function switchModeButtons(id) {
-        $('#jra-src-default-mode,#jra-src-popularity-mode,#jra-src-edit-mode').prop('disabled', false).css({'background-color': '', 'color': ''});
-        $('#' + id).prop('disabled', true).css({'background-color': '#99B761', 'color': 'white'});
+        $('#jra-src-number-mode,#jra-src-popularity-mode,#jra-src-edit-mode').css({'background-color': '', 'color': ''});
+        $('#' + id).css({'background-color': '#99B761', 'color': 'white'});
         $('.jra-src-edit').css('display', (id === 'jra-src-edit-mode') ? 'block' : 'none');
     }
 
-    function intoDefaultMode() {
-        switchModeButtons('jra-src-default-mode');
+    function intoNumberMode() {
+        switchModeButtons('jra-src-number-mode');
 
         var sortedRows = $('.jra-src-row').clone(true).sort(compareByNumber);
         $('.jra-src-row').each(function(i){
@@ -43,13 +39,20 @@
     }
 
     function intoEditMode() {
-        console.log('intoEditMode');
         switchModeButtons('jra-src-edit-mode');
     }
 
     function compareByNumber(a, b) {
         return $(a).data('jra-src-number') - $(b).data('jra-src-number');
     }
+
+    if ($('.raceDetailList').length === 0 || $('table.print:first').length > 0) {
+        return;
+    }
+
+    var matches = /'[^']{7}([^']+)\/[^']{2}'\)/.exec($('.kaisaiBtnStay a').attr('onclick'));
+    if (!matches) return;
+    var pageId = matches[1];
 
     $(document).on('click', '.jra-src-up', function(event){
         var selectedRow = $(event.target).closest('tr');
@@ -61,25 +64,36 @@
         selectedRow.insertAfter(selectedRow.next('.jra-src-row'));
     });
 
-    $(function(){
-        intoDefaultMode();
-    });
-    $(document).on('click', '#jra-src-default-mode', intoDefaultMode);
+    $(document).on('click', '#jra-src-number-mode', intoNumberMode);
     $(document).on('click', '#jra-src-popularity-mode', intoPopularityMode);
     $(document).on('click', '#jra-src-edit-mode', intoEditMode);
 
+    var numbered = false;
+    var voted = false;
+
     $('.raceDetailList .hNumber').each(function(i){
-        $(this).prepend('<p class="jra-src-edit" style="display: none;"><input class="jra-src-up" type="button" value="↑"></p>')
-               .append('<p class="jra-src-edit" style="display: none;"><input class="jra-src-down" type="button" value="↓"></p>');
+        var p = $('<p class="jra-src-edit" style="display: none;">');
+        $(this).prepend(p.clone().append('<input class="jra-src-up" type="button" value="↑">'))
+               .append(p.clone().append('<input class="jra-src-down" type="button" value="↓">'));
+
         var row = $(this).closest('tr');
         var favorite = parseInt(row.find('.ninki').text().replace(/[^0-9]/, '')) || 99;
-        row.addClass('jra-src-row').data('jra-src-number', i + 1).data('jra-src-favorite', favorite);
+        row.addClass('jra-src-row').data({'jra-src-number': i + 1, 'jra-src-favorite': favorite});
+
+        if (!numbered && $.trim($(this).text()) !== '') numbered = true;
+        if (!voted && favorite !== 99) voted = true;
     });
 
-    var div = $('<div>').css({'position': 'fixed', 'right': '5px', 'bottom': '5px'});
-    var btn = $('<input type="button">').css('display', 'block').css({'margin-top': '4px', 'width': '7.5em'});
-    div.append(btn.clone().attr('id', 'jra-src-default-mode').val('馬番順モード'));
-    div.append(btn.clone().attr('id', 'jra-src-popularity-mode').val('人気順モード'));
-    div.append(btn.clone().attr('id', 'jra-src-edit-mode').val('検討モード'));
-    $('body').append(div);
+    var btn = $('<input type="button" style="display: block; margin-top: 4px; width: 7.5em">');
+    $('<div style="position: fixed; right: 5px; bottom: 5px">')
+      .append(btn.clone().attr('id', 'jra-src-number-mode').val('馬番順モード').prop('disabled', !numbered))
+      .append(btn.clone().attr('id', 'jra-src-popularity-mode').val('人気順モード').prop('disabled', !voted))
+      .append(btn.clone().attr('id', 'jra-src-edit-mode').val('検討モード'))
+      .appendTo('body');
+
+    if (numbered) {
+        intoNumberMode();
+    } else {
+        intoEditMode();
+    }
 })();
