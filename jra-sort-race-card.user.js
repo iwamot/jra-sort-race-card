@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         JRA - Sort Race Card
 // @namespace    http://iwamot.com/
-// @version      0.0.6
+// @version      0.0.7
 // @author       IWAMOTO Takashi <hello@iwamot.com> http://iwamot.com/
 // @description  JRAの出馬表を並べ替えできるようにします。
 // @include      http://www.jra.go.jp/JRADB/accessD.html
@@ -24,6 +24,8 @@
         $('.jra-src-row').each(function(i){
             $(this).replaceWith(sortedRows[i]);
         });
+
+        updateMoveButtonsDisabled();
     }
 
     function intoPopularityMode() {
@@ -36,14 +38,40 @@
         $('.jra-src-row').each(function(i){
             $(this).replaceWith(sortedRows[i]);
         });
+
+        updateMoveButtonsDisabled();
     }
 
     function intoEditMode() {
         switchModeButtons('jra-src-edit-mode');
+
+        var savedOrder = localStorage.getItem(pageId);
+        if (!savedOrder) return;
+        console.log(savedOrder);
+
+        var sortedRows = $('.jra-src-row').clone(true).sort(function(a, b){
+            return savedOrder.indexOf($(a).find('.horseName a').text()) - savedOrder.indexOf($(b).find('.horseName a').text());
+        });
+        $('.jra-src-row').each(function(i){
+            $(this).replaceWith(sortedRows[i]);
+        });
+
+        updateMoveButtonsDisabled();
     }
 
     function compareByNumber(a, b) {
         return $(a).data('jra-src-number') - $(b).data('jra-src-number');
+    }
+
+    function saveOrder() {
+        localStorage.setItem(pageId, $('.raceDetailList .horseName a').map(function(){return $(this).text();}).get());
+    }
+
+    function updateMoveButtonsDisabled() {
+        $('.jra-src-up').prop('disabled', false);
+        $('.jra-src-up:first').prop('disabled', true);
+        $('.jra-src-down').prop('disabled', false);
+        $('.jra-src-down:last').prop('disabled', true);
     }
 
     if ($('.raceDetailList').length === 0 || $('table.print:first').length > 0) {
@@ -57,11 +85,15 @@
     $(document).on('click', '.jra-src-up', function(event){
         var selectedRow = $(event.target).closest('tr');
         selectedRow.insertBefore(selectedRow.prev('.jra-src-row'));
+        updateMoveButtonsDisabled();
+        saveOrder();
     });
 
     $(document).on('click', '.jra-src-down', function(event){
         var selectedRow = $(event.target).closest('tr');
         selectedRow.insertAfter(selectedRow.next('.jra-src-row'));
+        updateMoveButtonsDisabled();
+        saveOrder();
     });
 
     $(document).on('click', '#jra-src-number-mode', intoNumberMode);
@@ -70,6 +102,7 @@
 
     var numbered = false;
     var voted = false;
+    var edited = !!localStorage.getItem(pageId);
 
     $('.raceDetailList .hNumber').each(function(i){
         var p = $('<p class="jra-src-edit" style="display: none;">');
@@ -83,6 +116,7 @@
         if (!numbered && $.trim($(this).text()) !== '') numbered = true;
         if (!voted && favorite !== 99) voted = true;
     });
+    updateMoveButtonsDisabled();
 
     var btn = $('<input type="button" style="display: block; margin-top: 4px; width: 7.5em">');
     $('<div style="position: fixed; right: 5px; bottom: 5px">')
@@ -91,7 +125,7 @@
       .append(btn.clone().attr('id', 'jra-src-edit-mode').val('検討モード'))
       .appendTo('body');
 
-    if (numbered) {
+    if (numbered && !edited) {
         intoNumberMode();
     } else {
         intoEditMode();
